@@ -82,24 +82,41 @@ func Version() string {
 	return fmt.Sprintf("%s%s", VERSION, VERSION_APPENDIX)
 }
 
+// CheckOrCreateConfigDir 检查并创建所有必要的配置目录
+// 该函数会依次创建配置目录、历史记录目录、爬虫目录和自动校准目录，
+// 并设置默认的自动校准策略
+//
+// 返回值:
+//
+//	error - 如果在创建目录或设置策略过程中发生错误则返回相应错误，否则返回nil
 func CheckOrCreateConfigDir() error {
 	var err error
+
+	// 创建主配置目录
 	err = createConfigDir(CONFIGDIR)
 	if err != nil {
 		return err
 	}
+
+	// 创建历史记录目录
 	err = createConfigDir(HISTORYDIR)
 	if err != nil {
 		return err
 	}
+
+	// 创建爬虫相关目录
 	err = createConfigDir(SCRAPERDIR)
 	if err != nil {
 		return err
 	}
+
+	// 创建自动校准目录
 	err = createConfigDir(AUTOCALIBDIR)
 	if err != nil {
 		return err
 	}
+
+	// 设置默认的自动校准策略
 	err = setupDefaultAutocalibrationStrategies()
 	return err
 }

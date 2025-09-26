@@ -8,12 +8,13 @@ import (
 	"github.com/ffuf/ffuf/v2/pkg/ffuf"
 )
 
+// UsageSection 代表命令或工具使用信息的一个部分。
 type UsageSection struct {
-	Name          string
-	Description   string
-	Flags         []UsageFlag
-	Hidden        bool
-	ExpectedFlags []string
+	Name          string      // Name 是此使用信息部分的标识符
+	Description   string      // Description 提供对此部分功能的人类可读解释
+	Flags         []UsageFlag // Flags 是属于此部分的使用标志列表
+	Hidden        bool        // Hidden 指示此部分是否应从帮助输出中隐藏
+	ExpectedFlags []string    // ExpectedFlags 包含此部分中预期存在的标志名称
 }
 
 // PrintSection prints out the section name, description and each of the flags
@@ -48,7 +49,10 @@ func (f *UsageFlag) PrintFlag(max_length int) {
 	}
 }
 
+// Usage 输出 ffuf 工具的使用帮助信息，包括各个功能模块的参数说明和使用示例。
+// 该函数不接受任何参数，也不返回任何值。
 func Usage() {
+	// 定义 HTTP 相关选项的帮助信息段
 	u_http := UsageSection{
 		Name:          "HTTP OPTIONS",
 		Description:   "Options controlling the HTTP request and its parts.",
@@ -56,6 +60,8 @@ func Usage() {
 		Hidden:        false,
 		ExpectedFlags: []string{"cc", "ck", "H", "X", "b", "d", "r", "u", "raw", "recursion", "recursion-depth", "recursion-strategy", "replay-proxy", "timeout", "ignore-body", "x", "sni", "http2"},
 	}
+
+	// 定义通用选项的帮助信息段
 	u_general := UsageSection{
 		Name:          "GENERAL OPTIONS",
 		Description:   "",
@@ -63,6 +69,8 @@ func Usage() {
 		Hidden:        false,
 		ExpectedFlags: []string{"ac", "acc", "ack", "ach", "acs", "c", "config", "json", "maxtime", "maxtime-job", "noninteractive", "p", "rate", "scraperfile", "scrapers", "search", "s", "sa", "se", "sf", "t", "v", "V"},
 	}
+
+	// 定义兼容性选项的帮助信息段（默认隐藏）
 	u_compat := UsageSection{
 		Name:          "COMPATIBILITY OPTIONS",
 		Description:   "Options to ensure compatibility with other pieces of software.",
@@ -70,6 +78,8 @@ func Usage() {
 		Hidden:        true,
 		ExpectedFlags: []string{"compressed", "cookie", "data", "data-ascii", "data-binary", "i", "k"},
 	}
+
+	// 定义匹配器选项的帮助信息段
 	u_matcher := UsageSection{
 		Name:          "MATCHER OPTIONS",
 		Description:   "Matchers for the response filtering.",
@@ -77,6 +87,8 @@ func Usage() {
 		Hidden:        false,
 		ExpectedFlags: []string{"mmode", "mc", "ml", "mr", "ms", "mt", "mw"},
 	}
+
+	// 定义过滤器选项的帮助信息段
 	u_filter := UsageSection{
 		Name:          "FILTER OPTIONS",
 		Description:   "Filters for the response filtering.",
@@ -84,6 +96,8 @@ func Usage() {
 		Hidden:        false,
 		ExpectedFlags: []string{"fmode", "fc", "fl", "fr", "fs", "ft", "fw"},
 	}
+
+	// 定义输入选项的帮助信息段
 	u_input := UsageSection{
 		Name:          "INPUT OPTIONS",
 		Description:   "Options for input data for fuzzing. Wordlists and input generators.",
@@ -91,6 +105,8 @@ func Usage() {
 		Hidden:        false,
 		ExpectedFlags: []string{"D", "enc", "ic", "input-cmd", "input-num", "input-shell", "mode", "request", "request-proto", "e", "w"},
 	}
+
+	// 定义输出选项的帮助信息段
 	u_output := UsageSection{
 		Name:          "OUTPUT OPTIONS",
 		Description:   "Options for output. Output file formats, file names and debug file locations.",
@@ -98,9 +114,11 @@ func Usage() {
 		Hidden:        false,
 		ExpectedFlags: []string{"audit-log", "debug-log", "o", "of", "od", "or"},
 	}
+
+	// 将所有帮助信息段组合成一个切片
 	sections := []UsageSection{u_http, u_general, u_compat, u_matcher, u_filter, u_input, u_output}
 
-	// Populate the flag sections
+	// 遍历所有已注册的命令行标志，并将其归类到对应的帮助信息段中
 	max_length := 0
 	flag.VisitAll(func(f *flag.Flag) {
 		found := false
@@ -123,14 +141,15 @@ func Usage() {
 		}
 	})
 
+	// 打印工具版本信息
 	fmt.Printf("Fuzz Faster U Fool - v%s\n\n", ffuf.Version())
 
-	// Print out the sections
+	// 打印各个帮助信息段的内容
 	for _, section := range sections {
 		section.PrintSection(max_length, false)
 	}
 
-	// Usage examples.
+	// 打印使用示例
 	fmt.Printf("EXAMPLE USAGE:\n")
 
 	fmt.Printf("  Fuzz file paths from wordlist.txt, match all responses but filter out those with content-size 42.\n")

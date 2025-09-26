@@ -1,8 +1,9 @@
 package ffuf
 
 import (
-	"github.com/adrg/xdg"
 	"path/filepath"
+
+	"github.com/adrg/xdg"
 )
 
 var (
