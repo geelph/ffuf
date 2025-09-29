@@ -189,18 +189,23 @@ func ParseFlags(opts *ffuf.ConfigOptions) *ffuf.ConfigOptions {
 	return opts
 }
 
+// main 是程序的入口函数，负责初始化配置、解析命令行参数、设置日志、处理特殊功能（如搜索哈希）、
+// 构建扫描任务并启动执行。
 func main() {
 
 	var err, optserr error
+	// 创建一个可取消的上下文，用于控制整个程序的生命周期
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	// prepare the default config options from default config file
+
+	// 从默认配置文件中读取配置选项
 	var opts *ffuf.ConfigOptions
 	opts, optserr = ffuf.ReadDefaultConfig()
 
+	// 解析命令行参数，并更新配置选项
 	opts = ParseFlags(opts)
 
-	// Handle searchhash functionality and exit
+	// 处理 --searchhash 功能：根据给定的哈希值查找历史请求记录并打印结果
 	if opts.General.Searchhash != "" {
 		coptions, pos, err := ffuf.SearchHash(opts.General.Searchhash)
 		if err != nil {
@@ -229,10 +234,13 @@ func main() {
 		os.Exit(0)
 	}
 
+	// 显示版本信息并退出
 	if opts.General.ShowVersion {
 		fmt.Printf("ffuf version: %s\n", ffuf.Version())
 		os.Exit(0)
 	}
+
+	// 设置调试日志输出目标
 	if len(opts.Output.DebugLog) != 0 {
 		f, err := os.OpenFile(opts.Output.DebugLog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
@@ -245,10 +253,13 @@ func main() {
 	} else {
 		log.SetOutput(io.Discard)
 	}
+
+	// 记录读取默认配置时出现的错误（如果有）
 	if optserr != nil {
 		log.Printf("Error while opening default config file: %s", optserr)
 	}
 
+	// 如果指定了自定义配置文件，则加载该配置文件的内容
 	if opts.General.ConfigFile != "" {
 		opts, err = ffuf.ReadConfig(opts.General.ConfigFile)
 		if err != nil {
@@ -257,13 +268,13 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Encoutered error(s): %s\n", err)
 			os.Exit(1)
 		}
-		// Reset the flag package state
+		// 重置 flag 包的状态以重新解析 CLI 参数
 		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-		// Re-parse the cli options
+		// 再次解析命令行参数以覆盖配置文件中的设置
 		opts = ParseFlags(opts)
 	}
 
-	// Set up Config struct
+	// 根据最终的配置选项构建 Config 结构体
 	conf, err := ffuf.ConfigFromOptions(opts, ctx, cancel)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Encountered error(s): %s\n", err)
@@ -272,8 +283,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	// 准备扫描任务对象
 	job, err := prepareJob(conf)
 
+	// 关闭审计日志文件句柄（如果已打开）
 	if job.AuditLogger != nil {
 		defer job.AuditLogger.Close()
 	}
@@ -283,6 +296,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Encountered error(s): %s\n", err)
 		os.Exit(1)
 	}
+
+	// 配置过滤器规则
 	if err := SetupFilters(opts, conf); err != nil {
 		fmt.Fprintf(os.Stderr, "Encountered error(s): %s\n", err)
 		Usage()
@@ -290,6 +305,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// 启动交互式界面（仅在非交互模式下跳过）
 	if !conf.Noninteractive {
 		go func() {
 			err := interactive.Handle(job)
@@ -299,30 +315,37 @@ func main() {
 		}()
 	}
 
-	// Job handles waiting for goroutines to complete itself
+	// 启动扫描任务（内部会等待所有协程完成）
 	job.Start()
 }
 
+// prepareJob 根据提供的配置准备一个新的 ffuf 任务
+// 它初始化输入提供者、运行器、输出提供者、审计日志记录器和抓取器
 func prepareJob(conf *ffuf.Config) (*ffuf.Job, error) {
 	var err error
+	// 创建新的任务实例
 	job := ffuf.NewJob(conf)
 	var errs ffuf.Multierror
+	// 初始化输入提供者
 	job.Input, errs = input.NewInputProvider(conf)
-	// TODO: implement error handling for runnerprovider and outputprovider
-	// We only have http runner right now
+
+	// TODO: 为 runnerprovider 和 outputprovider 实现错误处理
+	// 目前我们只有 HTTP 运行器
 	job.Runner = runner.NewRunnerByName("http", conf, false)
+	// 如果配置了重放代理 URL，则初始化重放运行器
 	if len(conf.ReplayProxyURL) > 0 {
 		job.ReplayRunner = runner.NewRunnerByName("http", conf, true)
 	}
-	// We only have stdout outputprovider right now
+	// 目前我们只有标准输出输出提供者
 	job.Output = output.NewOutputProviderByName("stdout", conf)
 
-	// Initialize the audit logger if specified
+	// 如果指定了审计日志，则初始化审计日志记录器
 	if len(conf.AuditLog) > 0 {
 		job.AuditLogger, err = output.NewAuditLogger(conf.AuditLog)
 		if err != nil {
 			errs.Add(err)
 		} else {
+			// 将配置写入审计日志
 			err = job.AuditLogger.Write(conf)
 			if err != nil {
 				errs.Add(err)
@@ -330,28 +353,40 @@ func prepareJob(conf *ffuf.Config) (*ffuf.Job, error) {
 		}
 	}
 
-	// Initialize scraper
+	// 初始化抓取器
 	newscraper, scraper_err := scraper.FromDir(ffuf.SCRAPERDIR, conf.Scrapers)
 	if scraper_err.ErrorOrNil() != nil {
 		errs.Add(scraper_err.ErrorOrNil())
 	}
 	job.Scraper = newscraper
+	// 如果指定了抓取器文件，则从文件中追加抓取器配置
 	if conf.ScraperFile != "" {
 		err = job.Scraper.AppendFromFile(conf.ScraperFile)
 		if err != nil {
 			errs.Add(err)
 		}
 	}
+	// 返回任务和可能的错误集合
 	return job, errs.ErrorOrNil()
 }
 
+// SetupFilters 根据解析选项设置匹配器和过滤器，并将它们添加到配置中。
+// 参数:
+//   - parseOpts: 包含用户指定的过滤器和匹配器选项的结构体指针。
+//   - conf: 配置对象，用于存储实际生效的匹配器管理器和其他运行时配置。
+//
+// 返回值:
+//   - error: 如果在添加匹配器或过滤器过程中发生错误，则返回包含所有错误的多错误对象；否则返回 nil。
 func SetupFilters(parseOpts *ffuf.ConfigOptions, conf *ffuf.Config) error {
 	errs := ffuf.NewMultierror()
 	conf.MatcherManager = filter.NewMatcherManager()
-	// If any other matcher is set, ignore -mc default value
+
+	// 检查是否通过命令行设置了特定标志位以决定默认行为
 	matcherSet := false
 	statusSet := false
 	warningIgnoreBody := false
+
+	// 遍历已设置的命令行标志，判断哪些匹配/过滤条件被显式指定
 	flag.Visit(func(f *flag.Flag) {
 		if f.Name == "mc" {
 			statusSet = true
@@ -375,13 +410,15 @@ func SetupFilters(parseOpts *ffuf.ConfigOptions, conf *ffuf.Config) error {
 			warningIgnoreBody = true
 		}
 	})
-	// Only set default matchers if no
+
+	// 只有当没有其他匹配器被设置 或者 mc 被显式设置时才使用默认状态码匹配器
 	if statusSet || !matcherSet {
 		if err := conf.MatcherManager.AddMatcher("status", parseOpts.Matcher.Status); err != nil {
 			errs.Add(err)
 		}
 	}
 
+	// 添加各种过滤器（如果用户提供了相应的参数）
 	if parseOpts.Filter.Status != "" {
 		if err := conf.MatcherManager.AddFilter("status", parseOpts.Filter.Status, false); err != nil {
 			errs.Add(err)
@@ -415,6 +452,8 @@ func SetupFilters(parseOpts *ffuf.ConfigOptions, conf *ffuf.Config) error {
 			errs.Add(err)
 		}
 	}
+
+	// 添加各种匹配器（如果用户提供了相应的参数）
 	if parseOpts.Matcher.Size != "" {
 		if err := conf.MatcherManager.AddMatcher("size", parseOpts.Matcher.Size); err != nil {
 			errs.Add(err)
@@ -440,13 +479,23 @@ func SetupFilters(parseOpts *ffuf.ConfigOptions, conf *ffuf.Config) error {
 			errs.Add(err)
 		}
 	}
+
+	// 如果同时启用了忽略响应体和可能受其影响的过滤器/匹配器，给出警告提示
 	if conf.IgnoreBody && warningIgnoreBody {
 		fmt.Printf("*** Warning: possible undesired combination of -ignore-body and the response options: fl,fs,fw,ml,ms and mw.\n")
 	}
+
 	return errs.ErrorOrNil()
 }
 
+// printSearchResults 打印搜索结果，包括配置、位置、执行时间和哈希值
+// 参数:
+//   - conf: ffuf.Config 配置指针，包含任务配置信息
+//   - pos: 整数，表示在输入提供者中的位置
+//   - exectime: time.Time，表示执行开始的时间
+//   - hash: 字符串，表示 FFUFHASH 值
 func printSearchResults(conf *ffuf.Config, pos int, exectime time.Time, hash string) {
+	// 根据配置创建新的输入提供者
 	inp, err := input.NewInputProvider(conf)
 	if err.ErrorOrNil() != nil {
 		fmt.Printf("-------------------------------------------\n")
@@ -454,13 +503,20 @@ func printSearchResults(conf *ffuf.Config, pos int, exectime time.Time, hash str
 		fmt.Println(err.ErrorOrNil())
 		return
 	}
+
+	// 设置输入提供者的位置并获取输入数据
 	inp.SetPosition(pos)
 	inputdata := inp.Value()
+	// 将哈希值添加到输入数据中
 	inputdata["FFUFHASH"] = []byte(hash)
+
+	// 获取基础请求并创建一个简单的运行器来转储请求
 	basereq := ffuf.BaseRequest(conf)
 	dummyrunner := runner.NewRunnerByName("simple", conf, false)
 	ffufreq, _ := dummyrunner.Prepare(inputdata, &basereq)
 	rawreq, _ := dummyrunner.Dump(&ffufreq)
+
+	// 打印格式化的输出，包括执行时间和原始请求
 	fmt.Printf("-------------------------------------------\n")
 	fmt.Printf("ffuf job started at: %s\n\n", exectime.Format(time.RFC3339))
 	fmt.Printf("%s\n", string(rawreq))
