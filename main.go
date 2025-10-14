@@ -19,28 +19,55 @@ import (
 	"github.com/ffuf/ffuf/v2/pkg/scraper"
 )
 
+// multiStringFlag 定义了一个字符串切片类型，用于实现命令行参数的多重字符串标志
+// 该类型可以接收多个字符串值作为命令行参数，例如可以用于处理多个HTTP头或Cookie
 type multiStringFlag []string
+
+// wordlistFlag 定义了一个字符串切片类型，用于实现命令行参数的词表标志
+// 该类型专门用于处理词表相关的命令行参数输入，支持通过逗号分隔的多个词表路径
 type wordlistFlag []string
 
+// String 返回 multiStringFlag 的字符串表示形式，始终返回空字符串
+// 该方法是实现 flag.Value 接口所必需的
 func (m *multiStringFlag) String() string {
 	return ""
 }
 
+// String 返回 wordlistFlag 的字符串表示形式，始终返回空字符串
+// 该方法是实现 flag.Value 接口所必需的
 func (m *wordlistFlag) String() string {
 	return ""
 }
 
+// Set 将值添加到 multiStringFlag 切片中
+// 该方法实现了 flag.Value 接口的 Set 方法
+// 参数:
+//   - value: 要追加到标志中的字符串值
+//
+// 返回值:
+//   - error: 始终返回 nil，因为不执行任何验证
 func (m *multiStringFlag) Set(value string) error {
 	*m = append(*m, value)
 	return nil
 }
 
+// Set 解析并将值添加到 wordlistFlag 切片中
+// 如果输入包含逗号，则分割值并分别添加每个部分
+// 否则将值作为单个元素添加
+// 该方法实现了 flag.Value 接口的 Set 方法
+// 参数:
+//   - value: 要处理并追加到标志中的字符串值
+//
+// 返回值:
+//   - error: 始终返回 nil，因为不执行任何验证
 func (m *wordlistFlag) Set(value string) error {
 	delimited := strings.Split(value, ",")
 
+	// 如果找到逗号分隔的值，则分别添加每个值
 	if len(delimited) > 1 {
 		*m = append(*m, delimited...)
 	} else {
+		// 否则添加单个值
 		*m = append(*m, value)
 	}
 

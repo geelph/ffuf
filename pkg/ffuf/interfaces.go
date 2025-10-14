@@ -79,10 +79,17 @@ type OutputProvider interface {
 	Cycle()
 }
 
-// AuditLogger is responsible for providing auditing output of every request/response
-// sent and recieved by FFUF
+// AuditLogger 是负责提供FFUF发送和接收的每个请求/响应的审计输出的接口
+// 该接口定义了审计日志记录器必须实现的方法，用于记录和管理审计日志
 type AuditLogger interface {
+	// Close 关闭审计日志记录器并释放相关资源
 	Close()
+
+	// Write 将给定数据写入审计日志
+	// 参数:
+	//   - data: 要写入审计日志的数据，可以是任何类型
+	// 返回值:
+	//   - error: 如果写入操作失败则返回错误，否则返回nil
 	Write(data interface{}) error
 }
 
