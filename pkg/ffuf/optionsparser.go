@@ -13,7 +13,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pelletier/go-toml"
+	//"github.com/pelletier/go-toml"
+	"github.com/pelletier/go-toml/v2"
 )
 
 // ConfigOptions 定义了配置选项的结构体，包含多个子选项用于控制程序行为。
