@@ -207,8 +207,6 @@ func NewConfigOptions() *ConfigOptions {
 	return c
 }
 
-// ConfigFromOptions parses the values in ConfigOptions struct, ensures that the values are sane,
-// and creates a Config struct out of them.
 // ConfigFromOptions 根据解析后的命令行选项、上下文和取消函数创建一个配置对象。
 // 它会验证输入参数的有效性，并根据需要初始化各种配置项（如请求方式、URL、Headers、代理等），
 // 同时处理输入源（如字典文件或命令）、编码器设置以及输出格式等内容。

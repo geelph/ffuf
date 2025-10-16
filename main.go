@@ -267,17 +267,22 @@ func main() {
 		os.Exit(0)
 	}
 
-	// 设置调试日志输出目标
+	// 配置调试日志输出
+	// 检查是否设置了调试日志文件路径
 	if len(opts.Output.DebugLog) != 0 {
+		// 尝试打开或创建调试日志文件，以追加写入模式打开
 		f, err := os.OpenFile(opts.Output.DebugLog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
+			// 如果打开文件失败，输出错误信息到标准错误，并禁用日志输出
 			fmt.Fprintf(os.Stderr, "Disabling logging, encountered error(s): %s\n", err)
 			log.SetOutput(io.Discard)
 		} else {
+			// 成功打开文件，将日志输出重定向到文件，并在函数退出时关闭文件
 			log.SetOutput(f)
 			defer f.Close()
 		}
 	} else {
+		// 未设置调试日志文件路径，禁用日志输出
 		log.SetOutput(io.Discard)
 	}
 
